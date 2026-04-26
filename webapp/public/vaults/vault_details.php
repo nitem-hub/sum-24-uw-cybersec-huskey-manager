@@ -1,5 +1,6 @@
 <?php
 
+include '../components/loggly-logger.php';
 // Replace with your database connection details
 $hostname = 'backend-mysql-database';
 $username = 'user';
@@ -10,6 +11,7 @@ $database = 'password_manager';
 $conn = new mysqli($hostname, $username, $password, $database);
 
 if ($conn->connect_error) {
+    $logger->alert("Database connection failed");
     die ('A fatal error occurred and has been logged.');
     // die("Connection failed: " . $conn->connect_error);
 }
@@ -106,9 +108,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset ($_POST['editPasswordId']) &&
 
     if (!$resultEditPassword) {
 
+        $logger->alert("Database connection failed editing password");
         die ('A fatal error occurred and has been logged. File: ' . $filePathSQL . 'Query: ' . $queryEditPassword . ' Error: ' . $conn->error);
     }
 
+    $logger->notice("Password for $editUsername was modified");
     // Redirect to the current page after updating the password
     header("Location: {$_SERVER['PHP_SELF']}?vault_id=$vaultId");
     exit();
@@ -125,10 +129,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset ($_POST['deletePasswordId']) 
 
     if (!$resultDeletePassword) {
 
+        $logger->alert("Database connection failed deleting password");
         die ('A fatal error occurred and has been logged.');
         // die("Error deleting password: " . $conn->error);
     }
 
+    $logger->notice("Password was deleted from $vaultId");
     // Redirect to the current page after deleting the password
     header("Location: {$_SERVER['PHP_SELF']}?vault_id=$vaultId");
     exit();
@@ -141,6 +147,7 @@ $query = "SELECT vault_name FROM vaults WHERE vault_id = $vaultId";
 $result = $conn->query($query);
 
 if (!$result) {
+    $logger->alert("Database connection failed");
     die ("Query failed: " . $conn->error);
 }
 
@@ -288,7 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset ($_POST['deleteFilePasswordId
                             <?php echo $rowPassword['notes']; ?>
                         </td>
                         <td>
-                            <button class="btn btn-primary btn-sm show-password-btn">Show Password</button>
+                            <button class="btn btn-primary btn-sm show-password-btn" data-entry-id="<?= $entry['id'] ?>">Show Password</button>
                             <button class="btn btn-warning btn-sm edit-password-btn" data-toggle="modal"
                                 data-target="#editPasswordModal" data-password-notes="<?php echo $rowPassword['notes']; ?>"
                                 data-password-password="<?php echo $rowPassword['password']; ?>"
@@ -325,6 +332,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset ($_POST['deleteFilePasswordId
                 button.addEventListener('click', function () {
                     var passwordField = button.closest('tr').querySelector('.password-field');
                     passwordField.type = (passwordField.type === 'password') ? 'text' : 'password';
+                    // ✔️ LOGGER: Only fire when password becomes visible
+                    if (passwordField.type === 'text') {
+                        fetch('/components/log_password_reveal.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                entry_id: button.dataset.entryId,   // you already have entryId in the button
+                                timestamp: Date.now()
+                            })
+                        });
+                    }
                     if (button.textContent == 'Show Password') {
                         button.textContent = 'Hide Password';
                     } else {

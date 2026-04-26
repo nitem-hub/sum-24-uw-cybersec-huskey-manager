@@ -11,7 +11,15 @@ $database = 'password_manager';
 
 $conn = new mysqli($hostname, $username, $password, $database);
 
+$conn->query("CREATE TABLE IF NOT EXISTS failed_logins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ip_address VARCHAR(45),
+    username VARCHAR(255),
+    attempt_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)");
+
 if ($conn->connect_error) {
+    $logger->alert("Database connection failed");
     die("Connection failed: " . $conn->connect_error);
 }
 
@@ -22,8 +30,21 @@ if ($conn->connect_error) {
     die($errorMessage);
 }
 
+$ip = $_SERVER['REMOTE_ADDR'];
+$sql_check = "SELECT COUNT(*) as attempts FROM failed_logins WHERE ip_address = '$ip' AND attempt_time > DATE_SUB(NOW(), INTERVAL 15 MINUTE)";
+$result_check = $conn->query($sql_check);
+$blocked = false;
+if ($result_check) {
+    $row = $result_check->fetch_assoc();
+    $attempts = $row['attempts'];
+    if ($attempts >= 5) {
+        $blocked = true;
+        $error_message = 'Too many failed login attempts from your IP. Please try again later.';
+    }
+}
+
 // Check if the form is submitted
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$blocked) {
     
     $username = $_POST['username'];
     $password = $_POST['password'];
@@ -50,10 +71,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $error_message = 'Invalid username or password.';  
         $logger->warning("Login failed for username: $username");
+        $sql_insert = "INSERT INTO failed_logins (ip_address, username) VALUES ('$ip', '$username')";
+        $conn->query($sql_insert);
+        // Check if now blocked
+        $result_check2 = $conn->query($sql_check);
+        if ($result_check2) {
+            $row2 = $result_check2->fetch_assoc();
+            if ($row2['attempts'] >= 5) {
+                $logger->warning("Brute force attack detected from IP: $ip");
+            }
+        }
     }
 
-    $conn->close();
 }
+
+$conn->close();
 
 ?>
 

@@ -57,6 +57,14 @@ CREATE TABLE IF NOT EXISTS vault_permissions (
     FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE CASCADE        
 );
 
+-- Create the failed_logins table for brute force detection
+CREATE TABLE IF NOT EXISTS failed_logins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ip_address VARCHAR(45),
+    username VARCHAR(255),
+    attempt_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create an index on username for faster retrieval
 CREATE UNIQUE INDEX idx_username ON users(username);
 

@@ -2,6 +2,7 @@
 
 include '../components/authenticate.php';
 
+include '../components/loggly-logger.php';
 
 $hostname = 'backend-mysql-database';
 $username = 'user';
@@ -12,6 +13,7 @@ $conn = new mysqli($hostname, $username, $password, $database);
 
 if ($conn->connect_error) {
 
+    $logger->alert("Database connection failed");    
     die ('A fatal error occurred and has been logged.');
     //die("Connection failed: " . $conn->connect_error);
 }
@@ -26,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset ($_POST['vaultName'])) {
 
     if (!$result) {
 
+        $logger->alert("Connection failed adding vault");
         die ('A fatal error occurred and has been logged.');
         // die("Error adding vault: " . $conn->error);
     }
@@ -72,10 +75,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset ($_POST['editVaultName']) && 
     $result = $conn->query($query);
 
     if (!$result) {
+        
+        $logger->alert("Connection failed editing vault");
         die ('A fatal error occurred and has been logged.');
         // die("Error editing vault: " . $conn->error);
     }
 
+    $logger->notice("Vault $editVaultName modified");
     // Redirect to the current page after editing the vault
     header("Location: {$_SERVER['PHP_SELF']}");
     exit();
@@ -90,10 +96,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset ($_POST['deleteVaultId']) && 
     $result = $conn->query($query);
 
     if (!$result) {
+        $logger->alert("Connection failed deleting vault");
         die ('A fatal error occurred and has been logged.');
         //die("Error deleting vault: " . $conn->error);
     }
-
+    $logger->notice("Vault $deleteVaultId deleted");
     // Redirect to the current page after deleting the vault
     header("Location: {$_SERVER['PHP_SELF']}");
     exit();
