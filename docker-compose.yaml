@@ -6,7 +6,7 @@ services:
             - ./nginx-default.conf:/etc/nginx/conf.d/default.conf                        
             - ./webapp/public:/var/www/html/public
             - ./certs/localhost.crt:/etc/nginx/ssl/localhost.crt
-            - ./certs/localhost.key:/etc/nginx/ssl/localhost.key     
+            - ./certs/localhost.key:/etc/nginx/ssl/localhost.key
         ports:
             - "443:443"
     # php
